@@ -32,6 +32,12 @@ class CourseServiceImplTest {
     @Autowired
     private ICourseService courseService;
 
+
+    @Test
+    void testSyncCourseToES() {
+        courseService.handleCourseUp(1549025085494521858L);
+    }
+
     @Test
     void testTop5Best() {
         List<CourseVO> courseVOS = searchService.queryBestTopN();

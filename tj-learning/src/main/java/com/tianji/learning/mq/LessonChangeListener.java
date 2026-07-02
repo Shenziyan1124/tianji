@@ -13,6 +13,8 @@ import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -20,6 +22,10 @@ public class LessonChangeListener {
 
     private final ILearningLessonService  iLearningLessonService;
 
+
+    /**
+     * 监听支付成功后添加课表消息
+     */
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(value = "learning.lesson.pay.queue", durable = "true"),
             exchange = @Exchange(name = MqConstants.Exchange.ORDER_EXCHANGE,type = ExchangeTypes.TOPIC),
@@ -35,4 +41,28 @@ public class LessonChangeListener {
         log.debug("监听到用户{}的订单{},需要添加到课程{}课表中",order.getUserId(),order.getOrderId(),order.getCourseIds());
         iLearningLessonService.addUserLesson(order.getUserId(),order.getCourseIds());
     }
+
+
+
+
+    /**
+     * 监听退款后取消报名课程的消息
+     */
+    @RabbitListener(bindings = @QueueBinding(
+            value = @Queue(value = "learning.lesson.refund.queue", durable = "true"),
+            exchange = @Exchange(name = MqConstants.Exchange.ORDER_EXCHANGE,type = ExchangeTypes.TOPIC),
+            key = MqConstants.Key.ORDER_REFUND_KEY
+    ))
+    public void listenLessonRefund(OrderBasicDTO order){
+        //1.判断健壮性
+        if (order == null || order.getUserId() == null || CollUtils.isEmpty(order.getCourseIds())) {
+            log.error("接收到的MQ有误,数据为空");
+            return;
+        }
+        //2.逻辑处理
+        log.debug("监听到用户{}的订单{},需要删除课程{}",order.getUserId(),order.getOrderId(),order.getCourseIds());
+        List<Long> ids = order.getCourseIds();
+        ids.forEach(courseId -> iLearningLessonService.deleteNoValidLesson(order.getUserId(), courseId));
+    }
+
 }
