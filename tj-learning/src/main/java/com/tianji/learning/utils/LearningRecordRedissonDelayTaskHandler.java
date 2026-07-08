@@ -117,6 +117,11 @@ public class LearningRecordRedissonDelayTaskHandler {
                 learningLesson.setLatestLearnTime(LocalDateTime.now());
                 learningLessonService.updateById(learningLesson);
 
+            } catch (InterruptedException e) {
+                // 线程被中断（如应用关闭时），恢复中断标志并退出循环
+                log.info("延迟任务处理线程被中断，准备退出");
+                Thread.currentThread().interrupt();
+                break;
             } catch (Exception e) {
                 log.error("处理延迟任务异常", e);
             }
