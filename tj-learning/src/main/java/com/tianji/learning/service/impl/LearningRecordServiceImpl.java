@@ -17,6 +17,7 @@ import com.tianji.learning.mapper.LearningRecordMapper;
 import com.tianji.learning.service.ILearningLessonService;
 import com.tianji.learning.service.ILearningRecordService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tianji.learning.utils.LearningRecordDelayTaskHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,8 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
     private final ILearningLessonService lessonService;
 
     private final CourseClient courseClient;
+
+    private final LearningRecordDelayTaskHandler learningRecordDelayTaskHandler;
 
     // 查询指定课程的学习记录
     @Override
@@ -77,8 +80,14 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
             // 2.2 处理考试
             finished = handleExamRecord(userId, dto);
         }
+
+        if (!finished) {
+            // 没学完,直接走缓存
+            return;
+        }
+
         // 3. 处理课表记录
-        handleLearningLessonChanges(dto, finished);
+        handleLearningLessonChanges(dto);
     }
 
     // 处理考试记录
@@ -99,10 +108,7 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
 
     private Boolean handleVideoRecord(Long userId, LearningRecordFormDTO dto) {
         // 1. 查询旧的学习记录
-        LearningRecord old = lambdaQuery()
-                .eq(LearningRecord::getLessonId, dto.getLessonId())
-                .eq(LearningRecord::getSectionId, dto.getSectionId())
-                .one();
+        LearningRecord old = queryOldRecord(dto.getLessonId(), dto.getSectionId());
         // 2. 判断是否存在
         if (old == null) {
             // 3. 不存在 新增
@@ -120,19 +126,55 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
         // 4. 存在 更新
         // 4.1 判断是否第一次完成
         boolean firstFinished = !old.getFinished() && dto.getMoment() * 2 >= dto.getDuration();
+        if (!firstFinished) {
+            // 查询缓存
+            LearningRecord learningRecord = new LearningRecord();
+            learningRecord.setLessonId(dto.getLessonId());
+            learningRecord.setSectionId(dto.getSectionId());
+            learningRecord.setMoment(dto.getMoment());
+
+            learningRecord.setId(old.getId());
+            learningRecord.setFinished(old.getFinished());
+
+            learningRecordDelayTaskHandler.addLearningRecordTask(learningRecord);
+
+            return false;
+        }
+
+        // 4.2 更新数据库
         boolean success = lambdaUpdate()
                 .set(LearningRecord::getMoment, dto.getMoment())
-                .set(firstFinished, LearningRecord::getFinished, true)
-                .set(firstFinished, LearningRecord::getFinishTime, dto.getCommitTime())
+                .set(LearningRecord::getFinished, true)
+                .set(LearningRecord::getFinishTime, dto.getCommitTime())
                 .eq(LearningRecord::getId, old.getId())
                 .update();
         if (!success) {
             throw new DbException("更新学习记录失败");
         }
-        return firstFinished;
+
+        // 4.3 清理缓存
+        learningRecordDelayTaskHandler.deleteRecordCache(dto.getLessonId(), dto.getSectionId());
+        return true;
     }
 
-    private void handleLearningLessonChanges(LearningRecordFormDTO dto, Boolean finished) {
+    private LearningRecord queryOldRecord(Long lessonId, Long sectionId) {
+        // 查询缓存
+        LearningRecord record = learningRecordDelayTaskHandler.readRecordCache(lessonId, sectionId);
+        // 命中,直接返回
+        if (record != null) {
+            return record;
+        }
+        // 没命中, 查询数据库
+        record = lambdaQuery()
+                .eq(LearningRecord::getLessonId, lessonId)
+                .eq(LearningRecord::getSectionId, sectionId)
+                .one();
+        // 写入缓存
+        learningRecordDelayTaskHandler.writeRecordCache(record);
+        return record;
+    }
+
+    private void handleLearningLessonChanges(LearningRecordFormDTO dto) {
         // 1. 查询课表
         LearningLesson lesson = lessonService.getById(dto.getLessonId());
         if (lesson == null) {
@@ -140,25 +182,23 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
         }
         // 2. 判断是否有新的小节学完
         Boolean allLearned = false;
-        if (finished) {
-            // 3. 有->查询数据课程
-            CourseFullInfoDTO courseInfoById = courseClient.getCourseInfoById(lesson.getCourseId(),false,false);
-            if (courseInfoById == null) {
-                throw new BizIllegalException("课程不存在,无法更新数据");
-            }
-            // 4. 比较课程是否全部学完, 已学习小节>=课程总小节
-            allLearned = lesson.getLearnedSections() + 1 >= courseInfoById.getSectionNum();
+
+        // 3. 有->查询数据课程
+        CourseFullInfoDTO courseInfoById = courseClient.getCourseInfoById(lesson.getCourseId(), false, false);
+        if (courseInfoById == null) {
+            throw new BizIllegalException("课程不存在,无法更新数据");
         }
+        // 4. 比较课程是否全部学完, 已学习小节>=课程总小节
+        allLearned = lesson.getLearnedSections() + 1 >= courseInfoById.getSectionNum();
+
         // 5. 更新课表
         boolean success = lessonService.lambdaUpdate()
-                .set(lesson.getLearnedSections() == 0,LearningLesson::getStatus,LessonStatus.LEARNING.getValue())
+                .set(lesson.getLearnedSections() == 0, LearningLesson::getStatus, LessonStatus.LEARNING.getValue())
                 .set(allLearned, LearningLesson::getStatus, LessonStatus.FINISHED.getValue())
-                .set(!finished,LearningLesson::getLatestLearnTime,dto.getCommitTime())
-                .set(!finished,LearningLesson::getLatestSectionId,dto.getSectionId())
-                .set(finished,LearningLesson::getLearnedSections, lesson.getLearnedSections() + 1)
-                .eq(LearningLesson::getId,lesson.getId())
+                .set(LearningLesson::getLearnedSections, lesson.getLearnedSections() + 1)
+                .eq(LearningLesson::getId, lesson.getId())
                 .update();
-        if (!success){
+        if (!success) {
             throw new DbException("更新课表失败");
         }
     }
