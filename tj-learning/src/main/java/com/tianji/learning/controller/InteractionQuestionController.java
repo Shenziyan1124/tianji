@@ -11,6 +11,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -33,6 +34,18 @@ public class InteractionQuestionController {
     @ApiOperation(value = "新增互动问题")
     public void saveQuestion(@RequestBody QuestionFormDTO questionDTO){
         interactionQuestionService.saveQuestion(questionDTO);
+    }
+
+    @PutMapping("/{id}")
+    @ApiOperation(value = "修改互动问题")
+    public void updateQuestion(@PathVariable Long id, @RequestBody QuestionFormDTO questionDTO){
+        interactionQuestionService.updateQuestion(id,questionDTO);
+    }
+
+    @DeleteMapping("/{id}")
+    @ApiOperation(value = "删除互动问题")
+    public void deleteQuestion(@PathVariable Long id){
+        interactionQuestionService.deleteQuestion(id);
     }
 
     @GetMapping("/page")

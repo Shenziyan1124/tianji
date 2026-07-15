@@ -37,9 +37,14 @@ public class InteractionReply implements Serializable {
     private Long questionId;
 
     /**
-     * 回复的上级回答id
+     * 回答内容
      */
-    private Long answerId;
+    private String content;
+
+    /**
+     * 是否匿名，默认false
+     */
+    private Boolean anonymity;
 
     /**
      * 回答者id
@@ -47,9 +52,16 @@ public class InteractionReply implements Serializable {
     private Long userId;
 
     /**
-     * 回答内容
+     * 评论数量
      */
-    private String content;
+    private Integer replyTimes;
+
+
+
+    /**
+     * 回复的上级回答id
+     */
+    private Long answerId;
 
     /**
      * 回复的目标用户id
@@ -60,12 +72,6 @@ public class InteractionReply implements Serializable {
      * 回复的目标回复id
      */
     private Long targetReplyId;
-
-    /**
-     * 评论数量
-     */
-    private Integer replyTimes;
-
     /**
      * 点赞数量
      */
@@ -76,10 +82,7 @@ public class InteractionReply implements Serializable {
      */
     private Boolean hidden;
 
-    /**
-     * 是否匿名，默认false
-     */
-    private Boolean anonymity;
+
 
     /**
      * 创建时间

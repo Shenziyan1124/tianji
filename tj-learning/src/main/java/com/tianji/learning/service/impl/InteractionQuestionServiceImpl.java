@@ -7,6 +7,7 @@ import com.tianji.api.client.course.CourseClient;
 import com.tianji.api.client.search.SearchClient;
 import com.tianji.api.client.user.UserClient;
 import com.tianji.api.dto.course.CataSimpleInfoDTO;
+import com.tianji.api.dto.course.CourseFullInfoDTO;
 import com.tianji.api.dto.course.CourseSimpleInfoDTO;
 import com.tianji.api.dto.user.UserDTO;
 import com.tianji.common.domain.dto.PageDTO;
@@ -22,6 +23,7 @@ import com.tianji.learning.domain.query.QuestionAdminPageQuery;
 import com.tianji.learning.domain.query.QuestionPageQuery;
 import com.tianji.learning.domain.vo.QuestionAdminVO;
 import com.tianji.learning.domain.vo.QuestionVO;
+import com.tianji.learning.enums.QuestionStatus;
 import com.tianji.learning.mapper.InteractionQuestionMapper;
 import com.tianji.learning.service.IInteractionQuestionService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -30,6 +32,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -63,6 +66,53 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
         // 写入数据库
         save(question);
     }
+
+    // 修改互动问题
+    @Override
+    public void updateQuestion(Long id,QuestionFormDTO questionDTO) {
+        // 校验参数
+        if (StringUtils.isBlank(questionDTO.getTitle()) ||
+                StringUtils.isBlank(questionDTO.getDescription()) ||
+                questionDTO.getAnonymity() == null){
+            throw new BadRequestException("标题、描述和匿名不能为空");
+        }
+
+        // 校验问题是否存在
+        InteractionQuestion question = getById(id);
+        if (question == null) {
+            throw new BadRequestException("问题不存在");
+        }
+
+        // 校验用户是否是问题的作者
+        Long userId = UserContext.getUser();
+        if (!question.getUserId().equals(userId)) {
+            throw new BadRequestException("无权限修改");
+        }
+
+        // 更新问题信
+        BeanUtils.copyProperties(questionDTO, question);
+        question.setUpdateTime(LocalDateTime.now());
+        updateById(question);
+    }
+
+    // 删除互动问题
+    @Override
+    public void deleteQuestion(Long id) {
+        // 校验问题是否存在
+        InteractionQuestion question = getById(id);
+        if (question == null) {
+            throw new BadRequestException("问题不存在");
+        }
+        // 校验用户是否是问题的作者
+        Long userId = UserContext.getUser();
+        if (!question.getUserId().equals(userId)) {
+            throw new BadRequestException("无权限删除");
+        }
+        // 删除问题
+        removeById(id);
+    }
+
+
 
     // 分页查询互动问题
     @Override
@@ -253,15 +303,84 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
         return PageDTO.of(page, vos);
     }
 
-    // TODO 管理端根据id查询互动问题
+    // 管理端根据id查询问题详情
     @Override
     public QuestionAdminVO queryQuestionAdminById(Long id) {
+
+        if (id == null) throw new BadRequestException("问题id不能为空");
+
+        // 1. 根据id查询数据
         InteractionQuestion question = getById(id);
-        if (question != null) {
-            return BeanUtils.copyBean(question, QuestionAdminVO.class);
+        if (question == null) {
+            throw new RuntimeException("问题不存在");
         }
-        return null;
+
+        // 2. 封装vo
+        QuestionAdminVO vo = BeanUtils.copyBean(question, QuestionAdminVO.class);
+
+        // 3. 添加用户信息
+        UserDTO userDTO = userClient.queryUserById(question.getUserId());
+        if (userDTO != null) {
+            vo.setUserName(userDTO.getName());
+            vo.setUserIcon(userDTO.getIcon());
+        }
+
+        // 4. 添加课程信息
+        CourseFullInfoDTO courseDTO = courseClient.getCourseInfoById(question.getCourseId(),false,true);
+        if (courseDTO != null) {
+            vo.setCourseName(courseDTO.getName()); // 课程名称
+
+            List<Long> teacherIds = courseDTO.getTeacherIds();
+            if (CollUtils.isEmpty(teacherIds)) throw new RuntimeException("课程没有教师");
+
+            List<UserDTO> teachers = userClient.queryUserByIds(teacherIds);
+            if (CollUtils.isNotEmpty(teachers)) {
+                vo.setTeacherNames(
+                        teachers.stream()
+                                .map(UserDTO::getName).collect(Collectors.joining("/")));
+            }
+
+            // 课程分类信息
+            vo.setCategoryName(categoryCache.getCategoryNames(courseDTO.getCategoryIds()));
+        }
+
+        //  5. 添加章节信息
+        Set<Long> chapterAndSectionIds = new HashSet<>();
+        chapterAndSectionIds.add(question.getChapterId());
+        chapterAndSectionIds.add(question.getSectionId());
+
+        List<CataSimpleInfoDTO> cataList = catalogueClient.batchQueryCatalogue(chapterAndSectionIds);
+        if (CollUtils.isNotEmpty(cataList)) {
+            Map<Long, String> collect = cataList.stream().collect(Collectors.toMap(
+                    CataSimpleInfoDTO::getId, CataSimpleInfoDTO::getName));
+            vo.setChapterName(collect.getOrDefault(question.getChapterId(), ""));
+            vo.setSectionName(collect.getOrDefault(question.getSectionId(), ""));
+        }
+
+        // 6. 查看完成,将问题修改状态
+        question.setStatus(QuestionStatus.CHECKED);
+        updateById(question);
+
+        return vo;
     }
+
+
+    // 管理端更新互动问题隐藏状态
+    @Override
+    public void updateQuestionAdminHidden(Long id, Boolean hidden) {
+        InteractionQuestion question = getById(id);
+        if (question == null) {
+            throw new RuntimeException("问题不存在");
+        }
+        if (question.getHidden().equals(hidden)) {
+            throw new RuntimeException("问题已经处于该状态");
+        }
+
+        question.setHidden(hidden);
+        updateById(question);
+    }
+
+
 
 
 }

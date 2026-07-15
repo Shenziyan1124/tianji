@@ -36,6 +36,9 @@ public class QuestionAdminVO {
     private String sectionName;
     @ApiModelProperty("三级分类名称，中间使用/隔开")
     private String categoryName;
+
+    @ApiModelProperty("教师名称，多个教师名称之间使用逗号隔开")
+    private String teacherNames;
 }
 
 

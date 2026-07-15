@@ -3,6 +3,7 @@ package com.tianji.learning.controller;
 
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.learning.domain.dto.QuestionFormDTO;
+import com.tianji.learning.domain.po.InteractionQuestion;
 import com.tianji.learning.domain.query.QuestionAdminPageQuery;
 import com.tianji.learning.domain.query.QuestionPageQuery;
 import com.tianji.learning.domain.vo.QuestionAdminVO;
@@ -38,8 +39,14 @@ public class InteractionQuestionAdminController {
     }
 
     @GetMapping("/{id}")
-    @ApiOperation(value = "管理端根据id查询互动问题")
+    @ApiOperation(value = "管理端根据id查询问题详情")
     public QuestionAdminVO queryQuestionAdminById(@PathVariable Long id){
         return interactionQuestionService.queryQuestionAdminById(id);
+    }
+
+    @PutMapping("/{id}/hidden/{hidden}")
+    @ApiOperation(value = "管理端根据id隐藏或显示互动问题")
+    public void updateQuestionHidden(@PathVariable Long id, @PathVariable Boolean hidden){
+        interactionQuestionService.updateQuestionAdminHidden(id,hidden);
     }
 }
