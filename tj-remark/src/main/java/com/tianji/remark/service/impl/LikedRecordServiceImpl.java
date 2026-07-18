@@ -30,7 +30,7 @@ import static com.tianji.common.constants.MqConstants.Exchange.LIKE_RECORD_EXCHA
  * @author SHEN
  * @since 2026-07-16
  */
-@Service
+// @Service
 @RequiredArgsConstructor
 public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, LikedRecord> implements ILikedRecordService {
 
@@ -94,5 +94,10 @@ public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, Liked
 
         // 返回结果
         return list.stream().map(LikedRecord::getBizId).collect(Collectors.toSet());
+    }
+
+    @Override
+    public void checkLikedTimesAndSendMessage(String bizType, int maxLikedTimes) {
+
     }
 }
