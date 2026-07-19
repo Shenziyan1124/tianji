@@ -121,12 +121,6 @@ public class LikedRecordServiceRedisImpl extends ServiceImpl<LikedRecordMapper, 
     }
 
     @Override
-    public void checkLikedTimesAndSendMessage(String bizType) {
-
-    }
-
-
-    @Override
     public void checkLikedTimesAndSendMessage(String bizType, int maxLikedTimes) {
         // 读取并移除redis中的缓存
         String key = RedisConstants.LIKES_TIME_KEY_PREFIX + bizType;

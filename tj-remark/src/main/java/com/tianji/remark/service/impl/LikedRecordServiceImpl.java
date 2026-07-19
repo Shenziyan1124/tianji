@@ -96,6 +96,7 @@ public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, Liked
         return list.stream().map(LikedRecord::getBizId).collect(Collectors.toSet());
     }
 
+
     @Override
     public void checkLikedTimesAndSendMessage(String bizType, int maxLikedTimes) {
 

@@ -22,7 +22,5 @@ public interface ILikedRecordService extends IService<LikedRecord> {
 
     Set<Long> isBizLiked(List<Long> bizIds);
 
-    void checkLikedTimesAndSendMessage(String bizType);
-
     void checkLikedTimesAndSendMessage(String bizType, int maxLikedTimes);
 }
