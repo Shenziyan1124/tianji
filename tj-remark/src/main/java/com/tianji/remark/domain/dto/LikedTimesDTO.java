@@ -16,4 +16,8 @@ public class LikedTimesDTO {
      * 总的点赞次数
      */
     private Integer likedTimes;
+
+    public static LikedTimesDTO of(Long aLong, int i) {
+        return new LikedTimesDTO(aLong, i);
+    }
 }

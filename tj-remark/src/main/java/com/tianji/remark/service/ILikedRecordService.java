@@ -21,4 +21,6 @@ public interface ILikedRecordService extends IService<LikedRecord> {
     void addLikeRecord(@Valid LikeRecordFormDTO dto);
 
     Set<Long> isBizLiked(List<Long> bizIds);
+
+    void checkLikedTimesAndSendMessage(String bizType, int maxLikedTimes);
 }
