@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.tianji.common.constants.MqConstants.Exchange.LIKE_RECORD_EXCHANGE;
+import static com.tianji.common.constants.MqConstants.Key.LIKED_TIMES_KEY_TEMPLATE;
 
 /**
  * <p>
@@ -51,7 +52,7 @@ public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, Liked
         // mq通知
         mqHelper.send(
                 LIKE_RECORD_EXCHANGE,
-                StringUtils.format("LIKED_TIMES_KEY_TEMPLATE", dto.getBizType()),
+                StringUtils.format(LIKED_TIMES_KEY_TEMPLATE, dto.getBizType()),
                 LikeTimesDTO.of(dto.getBizId(),count)
         );
     }
@@ -86,7 +87,6 @@ public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, Liked
         // 获取当前用户
         Long userId = UserContext.getUser();
         // 查询当前用户是否点赞
-
         List<LikedRecord> list = lambdaQuery()
                 .in(LikedRecord::getBizId, bizIds)
                 .eq(LikedRecord::getUserId, userId)

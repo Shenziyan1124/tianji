@@ -262,15 +262,12 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         AssertUtils.isNotNull(learningLesson, "课程不存在");
 
         // 修改数据
-        LearningLesson l = new LearningLesson();
-        l.setCourseId(learningLesson.getId());
-        l.setWeekFreq(freq);
-        if (learningLesson.getPlanStatus() == PlanStatus.NO_PLAN){
-            l.setPlanStatus(PlanStatus.PLAN_RUNNING);
-        }
-        updateById(l);
-
-
+        lambdaUpdate()
+                .eq(LearningLesson::getCourseId,learningLesson.getCourseId())
+                .set(LearningLesson::getWeekFreq, freq)
+                .set(learningLesson.getPlanStatus() == PlanStatus.NO_PLAN,
+                        LearningLesson::getPlanStatus, PlanStatus.PLAN_RUNNING)
+                .update();
     }
 
     // 查询学习计划

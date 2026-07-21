@@ -8,11 +8,11 @@ import com.tianji.common.utils.StringUtils;
 import com.tianji.common.utils.UserContext;
 import com.tianji.remark.constants.RedisConstants;
 import com.tianji.remark.domain.dto.LikeRecordFormDTO;
-import com.tianji.remark.domain.dto.LikedTimesDTO;
 import com.tianji.remark.domain.po.LikedRecord;
 import com.tianji.remark.mapper.LikedRecordMapper;
 import com.tianji.remark.service.ILikedRecordService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.StringRedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 
 import static com.tianji.common.constants.MqConstants.Exchange.LIKE_RECORD_EXCHANGE;
+import static com.tianji.common.constants.MqConstants.Key.LIKED_TIMES_KEY_TEMPLATE;
 
 /**
  * <p>
@@ -36,6 +37,7 @@ import static com.tianji.common.constants.MqConstants.Exchange.LIKE_RECORD_EXCHA
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LikedRecordServiceRedisImpl extends ServiceImpl<LikedRecordMapper, LikedRecord> implements ILikedRecordService {
 
     private final RabbitMqHelper mqHelper;
@@ -45,12 +47,13 @@ public class LikedRecordServiceRedisImpl extends ServiceImpl<LikedRecordMapper, 
     @Override
     public void addLikeRecord(LikeRecordFormDTO dto) {
         // 根据前端看是点赞还是取消
-        Boolean success = dto.getLiked() ? like(dto) : cancelLike(dto);
+        if (dto.getLiked()) {
+            like(dto);
+        } else {
+            cancelLike(dto);
+        }
 
-        // 判断是否执行成功,失败直接返回
-        if (!success) return;
-
-        // 执行成功,统计点赞数
+        // 统计当前点赞总数并同步到ZSet
         Long likedCount = redisTemplate.opsForSet().size(
                 RedisConstants.LIKES_BIZ_KEY_PREFIX + dto.getBizId()
         );
@@ -71,7 +74,7 @@ public class LikedRecordServiceRedisImpl extends ServiceImpl<LikedRecordMapper, 
         // 获取key
         String key = RedisConstants.LIKES_BIZ_KEY_PREFIX + dto.getBizId();
         //执行sadd命令
-        Long count = redisTemplate.opsForSet().remove(key, userId);
+        Long count = redisTemplate.opsForSet().remove(key, String.valueOf(userId));
 
         return count != null && count > 0; // 1成功 0失败
     }
@@ -84,6 +87,7 @@ public class LikedRecordServiceRedisImpl extends ServiceImpl<LikedRecordMapper, 
         String key = RedisConstants.LIKES_BIZ_KEY_PREFIX + dto.getBizId();
         //执行sadd命令
         Long count = redisTemplate.opsForSet().add(key, String.valueOf(userId));
+        log.info("当前业务ID: {}, key:{}, Set中的元素个数: {}", dto.getBizId(), key, count);
 
         return count != null && count > 0;
     }
@@ -124,38 +128,38 @@ public class LikedRecordServiceRedisImpl extends ServiceImpl<LikedRecordMapper, 
     public void checkLikedTimesAndSendMessage(String bizType, int maxLikedTimes) {
         // 读取并移除redis中的缓存
         String key = RedisConstants.LIKES_TIME_KEY_PREFIX + bizType;
+        Long size = redisTemplate.opsForZSet().size(key);
+        log.debug("点赞ZSet[{}] 当前大小: {}", key, size);
+
         Set<ZSetOperations.TypedTuple<String>> typedTuples =
                 redisTemplate.opsForZSet().popMin(key, maxLikedTimes);
 
-        if (CollUtils.isEmpty(typedTuples)){
+        if (typedTuples == null || typedTuples.isEmpty()){
             return;
         }
 
         // 转换数据
-        List<LikedTimesDTO> list = new ArrayList<>(typedTuples.size());
+        List<LikeTimesDTO> list = new ArrayList<>(typedTuples.size());
 
         for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
             String bizId = typedTuple.getValue();
             Double likedTimes = typedTuple.getScore();
             if (bizId == null || likedTimes == null) continue;
 
-            list.add(LikedTimesDTO.of(Long.valueOf(bizId), likedTimes.intValue()));
+            list.add(LikeTimesDTO.of(Long.valueOf(bizId), likedTimes.intValue()));
+        }
 
+        if (list.isEmpty()) {
+            return;
         }
 
         // mq通知
-
+        log.info("准备发送点赞消息，bizType: {}, LIKE_RECORD_EXCHANGE:{}", bizType,LIKE_RECORD_EXCHANGE);
         mqHelper.send(
                 LIKE_RECORD_EXCHANGE,
-                StringUtils.format("LIKED_TIMES_KEY_TEMPLATE", bizType),
+                StringUtils.format(LIKED_TIMES_KEY_TEMPLATE, bizType),
                 list
         );
-
+        log.info("已发送点赞消息，bizType: {}, LIKE_RECORD_EXCHANGE:{}", bizType,LIKE_RECORD_EXCHANGE);
     }
-
-//    @Override
-//    public void checkLikedTimesAndSendMessage(String bizType, int maxLikedTimes) {
-
-//
-//    }
 }

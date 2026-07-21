@@ -48,7 +48,7 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
     private final InteractionQuestionMapper questionMapper;
 
     private final UserClient userClient;
-    private RemarkClient remarkClient;
+    private final RemarkClient remarkClient;
 
 
     // 新增评论或回答
@@ -141,7 +141,7 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
                 // 管理端通过 extraCondition 传入空 Consumer 来跳过此条件
                 .eq(InteractionReply::getHidden, false)
                 // 如果没传 answerId（即查回答列表），只查顶级回答，排除评论
-                .isNull(query.getAnswerId() == null, InteractionReply::getAnswerId)
+                .isNull(query.getAnswerId() == null || query.getAnswerId() == 0, InteractionReply::getAnswerId)
                 // 分页 + 排序：先按点赞数降序（热门在前），再按创建时间升序
                 .page(query.toMpPage(
                         new OrderItem(DATA_FIELD_NAME_LIKED_TIME, false),
@@ -150,23 +150,23 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
         // 应用调用方传入的额外条件
         // - 用户端：追加 .eq(hidden, false)（已在上方默认加了，这里再执行也无影响）
         // - 管理端：空操作，不追加任何条件
-//        extraCondition.accept(null);
+        //extraCondition.accept(null);
         List<InteractionReply> records = page.getRecords();
         // 如果没查到数据，直接返回空分页结果
         if (CollUtils.isEmpty(records)) return PageDTO.empty(0L, 0L);
         
         
         // ==================== 获取当前用户的点赞状态 ==================
-//        List<Long> bizIds = records.stream().map(InteractionReply::getId)
-//                .collect(Collectors.toList());
-//        Set<Long> likesBizIds = CollUtils.emptySet();
-//        Long userId = UserContext.getUser();
-//        if (userId != null && !bizIds.isEmpty()) {
-//            likesBizIds = remarkClient.isBizLiked(bizIds);
-//            if (likesBizIds == null) {
-//                likesBizIds = Collections.emptySet();
-//            }
-//        }
+        List<Long> bizIds = records.stream().map(InteractionReply::getId)
+                .collect(Collectors.toList());
+        Set<Long> likesBizIds = CollUtils.emptySet();
+        Long userId = UserContext.getUser();
+        if (userId != null && !bizIds.isEmpty()) {
+            likesBizIds = remarkClient.isBizLiked(bizIds);
+            if (likesBizIds == null) {
+                likesBizIds = Collections.emptySet();
+            }
+        }
 
         // ==================== 第3步：遍历查询结果，收集需要查用户信息的ID ====================
         Set<Long> uids = new HashSet<>();           // 待查询的用户ID集合（最终传给 userClient）
@@ -220,7 +220,7 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
 
         // ==================== 第6步：PO 转 VO，组装返回结果 ====================
         ArrayList<ReplyVO> voList = new ArrayList<>();
-//        Set<Long> finalLikedBizIds = likesBizIds;
+        Set<Long> finalLikedBizIds = likesBizIds;
 
         for (InteractionReply record : records) {
             // 6.1 自动复制同名属性
@@ -244,11 +244,11 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
                 replyVO.setTargetUserName(targetUserDTO.getName());
             }
 
-//            if (finalLikedBizIds.contains(record.getId())) {
-//                replyVO.setLiked(true);
-//            }else {
-//                replyVO.setLiked(false);
-//            }
+            if (finalLikedBizIds.contains(record.getId())) {
+                replyVO.setLiked(true);
+            }else {
+                replyVO.setLiked(false);
+            }
 
             voList.add(replyVO);
         }
