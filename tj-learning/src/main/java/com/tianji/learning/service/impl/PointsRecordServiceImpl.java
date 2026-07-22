@@ -1,15 +1,19 @@
 package com.tianji.learning.service.impl;
 
+import cn.hutool.core.io.resource.StringResource;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.DateUtils;
 import com.tianji.common.utils.UserContext;
+import com.tianji.learning.constants.RedisConstants;
 import com.tianji.learning.domain.po.PointsRecord;
 import com.tianji.learning.domain.vo.PointsStatisticsVO;
 import com.tianji.learning.enums.PointsRecordType;
 import com.tianji.learning.mapper.PointsRecordMapper;
 import com.tianji.learning.service.IPointsRecordService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,8 +29,12 @@ import java.util.stream.Collectors;
  * @since 2026-07-21
  */
 @Service
+@RequiredArgsConstructor
 public class PointsRecordServiceImpl extends ServiceImpl<PointsRecordMapper, PointsRecord>
         implements IPointsRecordService {
+
+
+    private final StringRedisTemplate redisTemplate;
 
     // 添加积分记录
     @Override
@@ -34,10 +42,11 @@ public class PointsRecordServiceImpl extends ServiceImpl<PointsRecordMapper, Poi
 
         int maxPoints = type.getMaxPoints();
         int realPoints = points;
+        LocalDateTime now = LocalDateTime.now();
+
         // 1.判断是否有积分上限
         if (maxPoints > 0) {
             // 2.有, 看是否超过上限
-            LocalDateTime now = LocalDateTime.now();
             LocalDateTime startTime = DateUtils.getDayStartTime(now);
             LocalDateTime endTime = DateUtils.getDayEndTime(now);
             // 2.1 查询今日积分
@@ -56,6 +65,12 @@ public class PointsRecordServiceImpl extends ServiceImpl<PointsRecordMapper, Poi
         pointsRecord.setPoints(realPoints);
         pointsRecord.setType(type);
         save(pointsRecord);
+
+        // 4.累计积分数据更新到redis的storedSet中
+        String key = RedisConstants.POINTS_BOARD_KEY_PREFIX +
+               now.format(DateUtils.POINTS_BOARD_SUFFIX_FORMATTER);
+
+        redisTemplate.opsForZSet().incrementScore(key, userId.toString(), realPoints);
 
     }
 

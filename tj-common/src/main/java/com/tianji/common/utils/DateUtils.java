@@ -36,6 +36,9 @@ public class DateUtils extends LocalDateTimeUtil {
     public static final long MAX_3_MONTH_DAY = 90L;
     public static final long MAX_YEAR_DAY = 365L;
 
+    public static final DateTimeFormatter POINTS_BOARD_SUFFIX_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyyMM");
+
     public static final DateTimeFormatter SIGN_DATE_SUFFIX_FORMATTER =
             DateTimeFormatter.ofPattern(":yyyyMM");
 
