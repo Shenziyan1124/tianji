@@ -21,7 +21,7 @@ import java.util.List;
  * @author SHEN
  * @since 2026-07-21
  */
-@Api(tags = "学习积分记录，每个月底清零")
+@Api(tags = "学习积分记录")
 @RestController
 @RequestMapping("/points")
 @RequiredArgsConstructor
