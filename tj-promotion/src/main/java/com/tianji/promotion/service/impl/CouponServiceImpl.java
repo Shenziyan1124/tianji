@@ -7,17 +7,24 @@ import com.tianji.common.utils.BeanUtils;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.StringUtils;
 import com.tianji.promotion.domain.dto.CouponFormDTO;
+import com.tianji.promotion.domain.dto.CouponIssueFormDTO;
 import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.CouponScope;
+import com.tianji.promotion.domain.query.CouponCodeQuery;
 import com.tianji.promotion.domain.query.CouponQuery;
+import com.tianji.promotion.domain.vo.CouponDetailVO;
 import com.tianji.promotion.domain.vo.CouponPageVO;
+import com.tianji.promotion.enums.CouponStatus;
+import com.tianji.promotion.enums.ObtainType;
 import com.tianji.promotion.mapper.CouponMapper;
 import com.tianji.promotion.service.ICouponScopeService;
 import com.tianji.promotion.service.ICouponService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tianji.promotion.service.IExchangeCodeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,6 +41,7 @@ import java.util.stream.Collectors;
 public class CouponServiceImpl extends ServiceImpl<CouponMapper, Coupon> implements ICouponService {
 
     private final ICouponScopeService couponScopeService;
+    private final IExchangeCodeService exchangeCodeService;
 
     // 保存优惠券
     @Override
@@ -47,11 +55,11 @@ public class CouponServiceImpl extends ServiceImpl<CouponMapper, Coupon> impleme
         Long couponId = coupon.getId();
         // 2. 保存限定范围
         List<Long> scopes = dto.getScopes();
-        if (CollUtils.isEmpty(scopes)){
+        if (CollUtils.isEmpty(scopes)) {
             throw new BadRequestException("优惠券限定范围不能为空");
         }
         List<CouponScope> list = scopes.stream()
-                        .map(bizId ->
+                .map(bizId ->
                         new CouponScope().setCouponId(couponId).setBizId(bizId)).collect(Collectors.toList());
         couponScopeService.saveBatch(list);
     }
@@ -76,5 +84,82 @@ public class CouponServiceImpl extends ServiceImpl<CouponMapper, Coupon> impleme
         List<CouponPageVO> couponPageVOS = BeanUtils.copyList(records, CouponPageVO.class);
         // 3. 返回
         return PageDTO.of(page, couponPageVOS);
+    }
+
+
+    // 根据id查询优惠券
+    @Override
+    public CouponDetailVO getCouponById(Long id) {
+        Coupon coupon = lambdaQuery()
+                .eq(id != null, Coupon::getId, id)
+                .one();
+        return BeanUtils.copyBean(coupon, CouponDetailVO.class);
+    }
+
+    // 更新优惠券
+    @Override
+    public void updateCoupon(CouponFormDTO dto) {
+        Coupon coupon = BeanUtils.copyBean(dto, Coupon.class);
+        coupon.setId(dto.getId());
+        updateById(coupon);
+        couponScopeService.updateCouponScopes(dto.getId(), dto.getScopes());
+    }
+
+    // 删除优惠券
+    @Override
+    public void deleteCoupon(Long id) {
+        removeById(id);
+        couponScopeService.deleteCouponScopes(id);
+    }
+
+    // 发放优惠券
+    @Override
+    public void beginIssueCoupon(CouponIssueFormDTO dto) {
+        // 1. 查询优惠券
+        Coupon coupon = getById(dto.getId());
+        if (coupon == null) throw new BadRequestException("优惠券不存在!");
+        // 2. 判断状态是否是暂停或待发放
+        if (coupon.getStatus() != CouponStatus.DRAFT && coupon.getStatus() != CouponStatus.PAUSE){
+            throw new BadRequestException("优惠券状态不允许发放");
+        }
+        // 3. 判断是否立即发放
+        LocalDateTime issueBeginTime = dto.getIssueBeginTime();
+        LocalDateTime now = LocalDateTime.now(); // 当前时间
+        // 开始时间为null 或者 开始时间小于等于当前时间 Before小于 after是大于 取反就是小于等于
+        // 代表立刻发放
+        boolean isBegin = issueBeginTime == null || !issueBeginTime.isAfter(now);
+
+        // 4. 更新状态
+        // 4.1 拷贝属性到po
+        Coupon c = BeanUtils.copyBean(dto, Coupon.class);
+        // 4.2 判断是否立即发放还是定时发放
+        if (isBegin){
+            c.setStatus(CouponStatus.ISSUING);
+            c.setIssueBeginTime(now);
+        }else {
+            c.setStatus(CouponStatus.UN_ISSUE);
+        }
+        // 4.3 更新到数据库
+        updateById(c);
+
+        // 5. 判断是否需要生成兑换码,优惠券类型必须是兑换码,优惠券状态必须是待发放
+        if (coupon.getObtainWay() == ObtainType.ISSUE && coupon.getStatus() == CouponStatus.DRAFT){
+            coupon.setIssueEndTime(c.getIssueEndTime());
+            exchangeCodeService.asyncGenerateCodes(coupon);
+        }
+    }
+
+    // 暂停优惠券
+    @Override
+    public void pauseCoupon(Long id) {
+        Coupon coupon = getById(id);
+        if (coupon == null)
+            throw new BadRequestException("优惠券不存在!");
+
+        if (coupon.getStatus() != CouponStatus.ISSUING)
+            throw new BadRequestException("优惠券状态不允许暂停");
+
+        coupon.setStatus(CouponStatus.PAUSE);
+        updateById(coupon);
     }
 }

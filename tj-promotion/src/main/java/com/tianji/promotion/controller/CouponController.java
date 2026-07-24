@@ -3,7 +3,10 @@ package com.tianji.promotion.controller;
 
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.promotion.domain.dto.CouponFormDTO;
+import com.tianji.promotion.domain.dto.CouponIssueFormDTO;
+import com.tianji.promotion.domain.query.CouponCodeQuery;
 import com.tianji.promotion.domain.query.CouponQuery;
+import com.tianji.promotion.domain.vo.CouponDetailVO;
 import com.tianji.promotion.domain.vo.CouponPageVO;
 import com.tianji.promotion.service.ICouponService;
 import io.swagger.annotations.Api;
@@ -41,4 +44,33 @@ public class CouponController {
         return couponService.getCouponPage(query);
     }
 
+    @GetMapping("/{id}")
+    @ApiOperation("根据id查询优惠券")
+    public CouponDetailVO getCouponById(@PathVariable("id") Long id) {
+        return couponService.getCouponById(id);
+    }
+
+    @PutMapping
+    @ApiOperation("修改优惠券")
+    public void updateCoupon(@RequestBody @Valid CouponFormDTO dto) {
+        couponService.updateCoupon(dto);
+    }
+
+    @DeleteMapping("/{id}")
+    @ApiOperation("删除优惠券")
+    public void deleteCoupon(@PathVariable("id") @Valid Long id) {
+        couponService.deleteCoupon(id);
+    }
+
+    @PutMapping("/{id}/issue")
+    @ApiOperation("发放优惠券")
+    public void beginIssueCoupon(@RequestBody @Valid CouponIssueFormDTO dto) {
+        couponService.beginIssueCoupon(dto);
+    }
+
+    @PutMapping("/{id}/pause")
+    @ApiOperation("暂停优惠券")
+    public void pauseCoupon(@PathVariable("id") @Valid Long id) {
+        couponService.pauseCoupon(id);
+    }
 }

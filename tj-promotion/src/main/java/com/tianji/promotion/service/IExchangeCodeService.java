@@ -1,7 +1,10 @@
 package com.tianji.promotion.service;
 
+import com.tianji.common.domain.dto.PageDTO;
+import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.ExchangeCode;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.tianji.promotion.domain.query.CouponCodeQuery;
 
 /**
  * <p>
@@ -13,4 +16,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface IExchangeCodeService extends IService<ExchangeCode> {
 
+    void asyncGenerateCodes(Coupon coupon);
+
+    PageDTO<?> getCouponCodePage(CouponCodeQuery query);
 }
