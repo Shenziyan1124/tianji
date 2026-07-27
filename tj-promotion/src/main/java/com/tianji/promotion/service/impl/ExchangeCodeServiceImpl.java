@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.tianji.promotion.constants.PromotionConstants.COUPON_CODE_MAP_KEY;
 import static com.tianji.promotion.constants.PromotionConstants.COUPON_CODE_SERIAL_PREFIX;
 
 /**
@@ -34,8 +35,10 @@ public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, Exc
 
 
     private final BoundValueOperations<String, String> ops;
+    private final StringRedisTemplate stringRedisTemplate;
 
     public ExchangeCodeServiceImpl(StringRedisTemplate stringRedisTemplate) {
+        this.stringRedisTemplate = stringRedisTemplate;
         this.ops = stringRedisTemplate.boundValueOps(COUPON_CODE_SERIAL_PREFIX);
     }
 
@@ -68,6 +71,7 @@ public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, Exc
         saveBatch(list);
     }
 
+    // 分页查询兑换码
     @Override
     public PageDTO<?> getCouponCodePage(CouponCodeQuery query) {
         Page<ExchangeCode> page = lambdaQuery()
@@ -78,6 +82,13 @@ public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, Exc
         if (CollUtils.isEmpty(records)) return PageDTO.empty(page);
 
         return PageDTO.of(page, records);
+    }
+
+    // 更新兑换码状态
+    @Override
+    public boolean updateExchangeMark(long serialNum, boolean b) {
+        Boolean b1 = stringRedisTemplate.opsForValue().setBit(COUPON_CODE_MAP_KEY, serialNum, b);
+        return b1 != null && b1;
     }
 
 
