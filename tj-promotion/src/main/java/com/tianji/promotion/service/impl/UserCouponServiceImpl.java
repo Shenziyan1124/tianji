@@ -19,13 +19,20 @@ import com.tianji.promotion.service.IExchangeCodeService;
 import com.tianji.promotion.service.IUserCouponService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.promotion.utils.CodeUtil;
+import com.tianji.promotion.utils.MyLock;
+import com.tianji.promotion.utils.MyLockType;
+import com.tianji.promotion.utils.RedisLock;
 import lombok.RequiredArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -41,6 +48,8 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
 
     private final CouponMapper couponMapper;
     private final IExchangeCodeService exchangeCodeService;
+    private final StringRedisTemplate redisTemplate;
+    private final RedissonClient redissonClient;
 
     // 领取优惠券
     @Override
@@ -61,13 +70,44 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
             throw new BadRequestException("优惠券库存不足");
 
         // 4. 校验并创建用户优惠券
-        synchronized (userId.toString().intern()) { // 以用户ID为锁
-            IUserCouponService o = (IUserCouponService) AopContext.currentProxy();
-            o.checkAndCreateUserCoupon(coupon, userId);
-        }
+        // 方式一: 同步锁
+        // synchronized (userId.toString().intern()) { // 以用户ID为锁
+        //    IUserCouponService o = (IUserCouponService) AopContext.currentProxy();
+        //    o.checkAndCreateUserCoupon(coupon, userId);
+        // }
+
+        String key = "lock:user:uId:" + userId;
+//        // 4.1 创建锁
+//        // 方式二: 自定义redis锁
+//        //RedisLock redisLock = new RedisLock(key, redisTemplate);
+//        // 方式三: redisson锁
+//        RLock lock = redissonClient.getLock(key);
+//
+//        // 方式二: 4.2 获取锁
+//        //Boolean isLock = redisLock.tryLock(5, TimeUnit.SECONDS);
+//
+//        // 方式三: 4.2 获取锁
+//        boolean isLock = lock.tryLock();
+//
+//        if (!isLock) throw new BizIllegalException("请求太频繁");
+//
+//        try {
+//            // 4.3 获取成功,开始业务
+//            IUserCouponService o = (IUserCouponService) AopContext.currentProxy();
+//            o.checkAndCreateUserCoupon(coupon, userId);
+//        } finally {
+//            // 方式二: 4.4 释放锁
+//            //redisLock.unlock();
+//
+//            // 方式三: 4.4 释放锁
+//            lock.unlock();
+//        }
+        IUserCouponService o = (IUserCouponService) AopContext.currentProxy();
+        o.checkAndCreateUserCoupon(coupon, userId);
     }
 
     // 校验并创建用户优惠券
+    @MyLock(name = "lock:user:uId:{userId}",lockType = MyLockType.RE_ENTRANT_LOCK)
     @Transactional
     @Override
     public void checkAndCreateUserCoupon(Coupon coupon, Long userId) {

@@ -1,7 +1,10 @@
 package com.tianji.promotion.config;
 
 import com.tianji.common.autoconfigure.xxljob.XxlJobProperties;
+import com.tianji.promotion.utils.MyLockAspect;
+import com.tianji.promotion.utils.MyLockFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RedissonClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -28,4 +31,9 @@ public class PromotionConfig {
         executor.initialize();
         return executor;
     }
+
+//    @Bean
+//    public MyLockAspect myLockAspect(RedissonClient redissonClient){
+//        return new MyLockAspect(redissonClient);
+//    }
 }
