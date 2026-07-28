@@ -1,15 +1,15 @@
 package com.tianji.promotion.controller;
 
 
+import com.tianji.common.domain.dto.PageDTO;
+import com.tianji.common.domain.query.PageQuery;
+import com.tianji.promotion.domain.query.UserCouponQuery;
+import com.tianji.promotion.domain.vo.CouponPageVO;
 import com.tianji.promotion.service.IUserCouponService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * <p>
@@ -36,5 +36,11 @@ public class UserCouponController {
     @ApiOperation("兑换码兑换优惠券")
     public void exchangeCoupon(@PathVariable("code") String code) {
         userCouponService.exchangeCoupon(code);
+    }
+
+    @GetMapping("/page")
+    @ApiOperation("分页查询用户优惠券")
+    public PageDTO<CouponPageVO> pageUserCoupons(UserCouponQuery  query ) {
+       return userCouponService.pageUserCoupons(query);
     }
 }

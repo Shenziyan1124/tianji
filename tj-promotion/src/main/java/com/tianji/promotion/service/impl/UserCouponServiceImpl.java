@@ -1,11 +1,17 @@
 package com.tianji.promotion.service.impl;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.exceptions.BadRequestException;
 import com.tianji.common.exceptions.BizIllegalException;
+import com.tianji.common.utils.BeanUtils;
+import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.UserContext;
 import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.ExchangeCode;
 import com.tianji.promotion.domain.po.UserCoupon;
+import com.tianji.promotion.domain.query.UserCouponQuery;
+import com.tianji.promotion.domain.vo.CouponPageVO;
 import com.tianji.promotion.enums.ExchangeCodeStatus;
 import com.tianji.promotion.mapper.CouponMapper;
 import com.tianji.promotion.mapper.UserCouponMapper;
@@ -19,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * <p>
@@ -131,18 +138,46 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
             // 7. 新增一个用户券
             Coupon coupon = couponMapper.selectById(exchangeCode.getExchangeTargetId());
             Long userId = UserContext.getUser();
-            checkAndCreateUserCoupon(coupon, userId);
-            // 8. 更新兑换码状态 数据库和redismap都更新  setbit
-            exchangeCodeService.lambdaUpdate()
-                    .set(ExchangeCode::getStatus, ExchangeCodeStatus.USED)
-                    .set(ExchangeCode::getUserId, userId)
-                    .eq(ExchangeCode::getId, exchangeCode.getId())
-                    .update();
+
+            // 8. 创建用户券 添加锁
+            synchronized (userId.toString().intern()) {
+                IUserCouponService o = (
+                        IUserCouponService) AopContext.currentProxy();
+                o.exchangeCouponWithTransaction(coupon, userId, exchangeCode);
+            }
+
         } catch (Exception e) {
             // 出现异常,将兑换码状态回滚
             exchangeCodeService.updateExchangeMark(serialNum, false);
             throw e;
         }
+    }
 
+    // 兑换码兑换优惠券 添加锁
+    @Transactional
+    @Override
+    public void exchangeCouponWithTransaction(Coupon coupon, Long userId, ExchangeCode exchangeCode) {
+        checkAndCreateUserCoupon(coupon, userId);
+        // 8. 更新兑换码状态 数据库和redismap都更新  setbit
+        exchangeCodeService.lambdaUpdate()
+                .set(ExchangeCode::getStatus, ExchangeCodeStatus.USED)
+                .set(ExchangeCode::getUserId, userId)
+                .eq(ExchangeCode::getId, exchangeCode.getId())
+                .update();
+    }
+
+    // TODO 分页查询用户优惠券
+    @Override
+    public PageDTO<CouponPageVO> pageUserCoupons(UserCouponQuery query) {
+        Page<UserCoupon> page = lambdaQuery()
+                .eq(UserCoupon::getUserId, UserContext.getUser())
+                .eq(query.getStatus() != null, UserCoupon::getStatus, query.getStatus())
+                .page(query.toMpPageDefaultSortByCreateTimeDesc());
+        List<UserCoupon> records = page.getRecords();
+        if (CollUtils.isEmpty(records)) return PageDTO.empty(page);
+
+        List<CouponPageVO> couponPageVOS = BeanUtils.copyList(records, CouponPageVO.class);
+
+        return PageDTO.of(page, couponPageVOS);
     }
 }
