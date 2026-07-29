@@ -23,4 +23,7 @@ public @interface MyLock {
 
 
     MyLockType lockType() default MyLockType.RE_ENTRANT_LOCK;
+
+
+    MyLockStrategy lockStrategy() default MyLockStrategy.FAIL_AFTER_RETRY_TIMEOUT;
 }

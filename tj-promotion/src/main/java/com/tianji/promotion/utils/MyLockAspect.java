@@ -39,11 +39,13 @@ public class MyLockAspect implements Ordered {
 //                throw new BizIllegalException("锁类型错误");
 //        }
         // 2. 获取锁
-        boolean isLock = lock.tryLock(myLock.waitTime(), myLock.leaseTime(), myLock.timeUnit());
+        boolean isLock = myLock.lockStrategy().tryLock(lock,myLock);
         // 3. 判断是否成功
         if (!isLock) {
             // 4. 失败抛异常
-            throw new BizIllegalException("请求太频繁");
+            //throw new BizIllegalException("请求太频繁");
+            // 在lockStrategy做了处理抛异常处理
+            return null;
         }
         try {
             // 5. 成功,执行业务

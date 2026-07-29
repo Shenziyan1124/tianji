@@ -17,12 +17,10 @@ import static com.tianji.promotion.utils.MyLockType.*;
 @Component
 public class MyLockFactory {
 
-    @Getter
-    private final RedissonClient redissonClient;
+
     private final Map<MyLockType, Function<String,RLock>> lockHandlers;
 
-    public MyLockFactory(RedissonClient redissonClient, Map<MyLockType, Function<String, RLock>> lockHandlers) {
-        this.redissonClient = redissonClient;
+    public MyLockFactory(RedissonClient redissonClient) {
         this.lockHandlers = new EnumMap<>(MyLockType.class); // 创建一个枚举类型的Map
         lockHandlers.put(RE_ENTRANT_LOCK, redissonClient::getLock);
         lockHandlers.put(FAIR_LOCK, redissonClient::getFairLock);

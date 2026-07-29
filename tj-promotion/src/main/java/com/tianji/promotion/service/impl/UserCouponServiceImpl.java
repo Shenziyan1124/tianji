@@ -1,6 +1,7 @@
 package com.tianji.promotion.service.impl;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tianji.common.autoconfigure.redisson.annotations.Lock;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.exceptions.BadRequestException;
 import com.tianji.common.exceptions.BizIllegalException;
@@ -107,7 +108,7 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
     }
 
     // 校验并创建用户优惠券
-    @MyLock(name = "lock:user:uId:{userId}",lockType = MyLockType.RE_ENTRANT_LOCK)
+    @Lock(name = "lock:coupon:#{userId}")
     @Transactional
     @Override
     public void checkAndCreateUserCoupon(Coupon coupon, Long userId) {
