@@ -44,3 +44,7 @@ tj:
       enable: true # 是否启用权限控制
       exclude-login-paths:
         - /coupons/list   # 不需要登录的接口
+  mq:
+    listener:
+      retry:
+        stateless:false

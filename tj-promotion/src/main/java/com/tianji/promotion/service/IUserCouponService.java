@@ -1,6 +1,7 @@
 package com.tianji.promotion.service;
 
 import com.tianji.common.domain.dto.PageDTO;
+import com.tianji.promotion.domain.dto.UserCouponDTO;
 import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.ExchangeCode;
 import com.tianji.promotion.domain.po.UserCoupon;
@@ -23,7 +24,7 @@ public interface IUserCouponService extends IService<UserCoupon> {
 
     // 校验并创建用户优惠券
     @Transactional
-    void checkAndCreateUserCoupon(Coupon coupon, Long userId);
+    void checkAndCreateUserCoupon(UserCouponDTO uc);
 
     void exchangeCoupon(String code);
 
