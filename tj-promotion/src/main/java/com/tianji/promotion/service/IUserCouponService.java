@@ -1,5 +1,7 @@
 package com.tianji.promotion.service;
 
+import com.tianji.api.dto.promotion.CouponDiscountDTO;
+import com.tianji.api.dto.promotion.OrderCourseDTO;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.promotion.domain.dto.UserCouponDTO;
 import com.tianji.promotion.domain.po.Coupon;
@@ -9,6 +11,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.tianji.promotion.domain.query.UserCouponQuery;
 import com.tianji.promotion.domain.vo.CouponPageVO;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * <p>

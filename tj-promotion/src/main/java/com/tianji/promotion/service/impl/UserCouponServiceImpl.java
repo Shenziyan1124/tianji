@@ -2,6 +2,8 @@ package com.tianji.promotion.service.impl;
 
 import cn.hutool.core.bean.copier.CopyOptions;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tianji.api.dto.promotion.CouponDiscountDTO;
+import com.tianji.api.dto.promotion.OrderCourseDTO;
 import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
 import com.tianji.common.autoconfigure.redisson.annotations.Lock;
 import com.tianji.common.constants.MqConstants;
@@ -308,4 +310,5 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
 
         return PageDTO.of(page, couponPageVOS);
     }
+
 }
