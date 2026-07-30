@@ -21,4 +21,6 @@ public interface IExchangeCodeService extends IService<ExchangeCode> {
     PageDTO<?> getCouponCodePage(CouponCodeQuery query);
 
     boolean updateExchangeMark(long serialNum, boolean b);
+
+    Long exchangeTargetId(long serialNum);
 }

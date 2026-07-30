@@ -92,7 +92,8 @@ public class LockAspect {
             // 2.1.获取表达式
             String tmp = matcher.group();
             // 2.2.尝试解析
-            Expression expression = parser.parseExpression("#" + matcher.group(1));
+            String expr = matcher.group(1);
+            Expression expression = parser.parseExpression(expr.startsWith("T(") ? expr : "#" + expr);
             Object value = expression.getValue(context);
             name = name.replace(tmp, ObjectUtils.nullSafeToString(value));
         }

@@ -47,4 +47,6 @@ tj:
   mq:
     listener:
       retry:
-        stateless:false
+        enable: true
+        stateless: false # true无状态；false有状态。如果业务中包含事务，这里改为false
+
