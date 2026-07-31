@@ -13,19 +13,27 @@ import com.tianji.promotion.service.IDiscountService;
 import com.tianji.promotion.strategy.discount.Discount;
 import com.tianji.promotion.strategy.discount.DiscountStrategy;
 import com.tianji.promotion.utils.PermuteUtil;
+import io.reactivex.Completable;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.sql.Array;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DiscountServiceImpl implements IDiscountService {
 
     private final UserCouponMapper userCouponMapper;
     private final ICouponScopeService couponScopeService;
+    private final Executor discountSolutionExecutor;
 
     // 查询我的优惠券可用方案
     @Override
@@ -58,12 +66,71 @@ public class DiscountServiceImpl implements IDiscountService {
         }
 
         // 4. 计算每种方案
-        ArrayList<CouponDiscountDTO> list = new ArrayList<>(solutions.size());
+        List<CouponDiscountDTO> list = Collections.synchronizedList(new ArrayList<>(solutions.size()));
+        // 4.1 定义闭锁 解决并发访问
+        CountDownLatch latch = new CountDownLatch(solutions.size());
         for (List<Coupon> solution : solutions){
-            list.add(calculateSolutionDiscount(availableCouponMap,orderCourses,solution));
+            CompletableFuture.supplyAsync(
+                    () -> calculateSolutionDiscount(availableCouponMap,orderCourses,solution),
+                    discountSolutionExecutor)
+                    .thenAccept(dto -> {
+                        list.add(dto);
+                        latch.countDown();
+                    });
+        }
+        // 4.2 等待运算结束
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            log.error("计算优惠券方案失败", e);
         }
         // 5. 筛选出最优方案
-        return list;
+        return findBestSolution(list);
+//        return list;
+    }
+
+    private List<CouponDiscountDTO> findBestSolution(List<CouponDiscountDTO> list) {
+        // 1. 准备map记录最优解决方案
+        // 最大的优惠 和 最少用的券 取交集
+        Map<String, CouponDiscountDTO> moreDiscountMap = new HashMap<>(); // key ids value 优惠券
+        Map<Integer, CouponDiscountDTO> lessCouponMap = new HashMap<>();  // key 优惠折扣金额 value 优惠券
+
+        // 2. 循环
+        for (CouponDiscountDTO solution : list){
+            // 2.1 计算当前方案的id组合
+            String ids = solution.getIds()
+                    .stream().sorted(Long::compare) // 按 id 升序排序 → [2, 5, 9]
+                    .map(String::valueOf)// 把每个 Long 转成字符串 →["2", "5", "9"]
+                    .collect(Collectors.joining(",")); // 用逗号拼成一个字符串"2,5,9"
+
+            // 2.2 比较用券相同优惠金额是否最大
+            CouponDiscountDTO best = moreDiscountMap.get(ids);
+            if (best != null && best.getDiscountAmount() >= solution.getDiscountAmount()){
+                // 当前方案优惠金额少,跳过
+                continue;
+            }
+            // 2.3 比较金额相同,用券是否最少
+            best = lessCouponMap.get(solution.getDiscountAmount());
+            if (best != null && best.getIds().size() <= solution.getIds().size()){
+                // 当前方案用券更多,跳过
+                continue;
+            }
+            // 2.4 更新最优解决
+            moreDiscountMap.put(ids, solution);
+            lessCouponMap.put(solution.getDiscountAmount(), solution);
+        }
+
+        // 3. 求交集
+        Collection<CouponDiscountDTO> bestSolutions =
+                CollUtils.intersection(moreDiscountMap.values(), lessCouponMap.values());
+
+        // 4. 排序,按优惠金额排序
+        return bestSolutions.stream()
+                .sorted(
+                        Comparator.comparingInt(CouponDiscountDTO::getDiscountAmount)
+                        //告诉排序规则:拿每个对象的discountAmount 来比",默认从小到大
+                        .reversed())
+                .collect(Collectors.toList());
     }
 
     private CouponDiscountDTO calculateSolutionDiscount(

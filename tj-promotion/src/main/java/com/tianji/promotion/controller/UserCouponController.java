@@ -53,7 +53,7 @@ public class UserCouponController {
 
     @PostMapping("/available")
     @ApiOperation("查询我的优惠券可用方案")
-    public List<CouponDiscountDTO> findDiscountSolution(List<OrderCourseDTO> orderCourses){
+    public List<CouponDiscountDTO> findDiscountSolution(@RequestBody List<OrderCourseDTO> orderCourses){
         return discountService.findDiscountSolution(orderCourses);
     }
 }
