@@ -8,10 +8,7 @@ import com.tianji.api.dto.promotion.OrderCourseDTO;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -40,4 +37,9 @@ public interface PromotionClient {
             @RequestParam("couponIds")
             List<Long> userCouponIds
     );
+
+    @GetMapping("/user-coupons/rules")
+    @ApiOperation("分页查询我的优惠券接口")
+    List<String> queryDiscountRules(
+            @ApiParam("用户优惠券id集合") @RequestParam("couponIds") List<Long> userCouponIds);
 }
