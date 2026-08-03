@@ -36,4 +36,6 @@ public interface IUserCouponService extends IService<UserCoupon> {
     void exchangeCouponWithTransaction(Coupon coupon, Long userId, ExchangeCode exchangeCode);
 
     PageDTO<CouponPageVO> pageUserCoupons(UserCouponQuery query);
+
+    void useCoupon(List<Long> userCouponIds);
 }
