@@ -20,4 +20,16 @@
         </foreach>
         and uc.status = #{status}
     </select>
+
+    <select id="queryDiscountRules" resultType="com.tianji.promotion.domain.po.Coupon">
+        select c.id, c.discount_type, c.`specific`, c.discount_value, c.threshold_amount,
+        c.max_discount_amount,  uc.id AS creater
+        from user_coupon uc
+        inner join coupon c on uc.coupon_id = c.id
+        where uc.id in
+        <foreach collection="userCouponIds" separator="," item="id" open="(" close=")">
+            #{id}
+        </foreach>
+        and uc.status = #{status}
+    </select>
 </mapper>

@@ -21,6 +21,7 @@ import com.tianji.promotion.domain.po.ExchangeCode;
 import com.tianji.promotion.domain.po.UserCoupon;
 import com.tianji.promotion.domain.query.UserCouponQuery;
 import com.tianji.promotion.domain.vo.CouponPageVO;
+import com.tianji.promotion.enums.DiscountType;
 import com.tianji.promotion.enums.ExchangeCodeStatus;
 import com.tianji.promotion.enums.UserCouponStatus;
 import com.tianji.promotion.mapper.CouponMapper;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.tianji.promotion.strategy.discount.DiscountStrategy;
 import com.tianji.promotion.utils.CodeUtil;
 import com.tianji.promotion.utils.MyLock;
 import com.tianji.promotion.utils.MyLockType;
@@ -407,5 +409,20 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
             throw new DbException("更新优惠券使用数量失败！");
         }
     }
+
+    // 查询优惠券的优惠规则
+    @Override
+    public List<String> queryDiscountRules(List<Long> userCouponIds) {
+        List<Coupon> couponList = baseMapper.queryDiscountRules(userCouponIds, UserCouponStatus.USED);
+        if (CollUtils.isEmpty(couponList)) {
+            return CollUtils.emptyList();
+        }
+
+        return couponList.stream()
+                .map(c -> DiscountStrategy.getDiscount(c.getDiscountType()).getRule(c))
+                .collect(Collectors.toList());
+
+    }
+
 
 }

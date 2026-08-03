@@ -85,4 +85,12 @@ public class UserCouponController {
     }
 
 
+    @GetMapping("/rules")
+    @ApiOperation("分页查询我的优惠券接口")
+    public List<String> queryDiscountRules(
+            @ApiParam("用户优惠券id集合") @RequestParam("couponIds") List<Long> userCouponIds){
+        return userCouponService.queryDiscountRules(userCouponIds);
+    }
+
+
 }
