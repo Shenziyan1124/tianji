@@ -5,25 +5,24 @@ import com.tianji.api.dto.promotion.CouponDiscountDTO;
 import com.tianji.api.dto.promotion.OrderCourseDTO;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.UserContext;
+import com.tianji.api.dto.promotion.OrderCouponDTO;
 import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.CouponScope;
+import com.tianji.promotion.enums.UserCouponStatus;
 import com.tianji.promotion.mapper.UserCouponMapper;
 import com.tianji.promotion.service.ICouponScopeService;
 import com.tianji.promotion.service.IDiscountService;
 import com.tianji.promotion.strategy.discount.Discount;
 import com.tianji.promotion.strategy.discount.DiscountStrategy;
 import com.tianji.promotion.utils.PermuteUtil;
-import io.reactivex.Completable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.sql.Array;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -143,6 +142,8 @@ public class DiscountServiceImpl implements IDiscountService {
         // 2. 初始化折扣明细的映射,是从页面存入的courses
         Map<Long, Integer> detailMap = courses.stream()
                 .collect(Collectors.toMap(OrderCourseDTO::getId, oc -> 0));
+        // 添加折扣明细
+        dto.setDiscountDetails(detailMap);
         // 3. 计算折扣
         for (Coupon coupon : solution){
             // 3.1 获取优惠券限定范围对应的课程
@@ -226,4 +227,24 @@ public class DiscountServiceImpl implements IDiscountService {
         }
         return map;
     }
+
+
+    // 查询优惠券方案计算订单优惠明细
+    @Override
+    public CouponDiscountDTO queryDiscountDetailByOrder(OrderCouponDTO dto) {
+        // 1.查询用户优惠券 防止用已经使用的券
+        List<Long> userCouponIds = dto.getUserCouponIds();
+        List<Coupon> coupons = userCouponMapper.queryCouponByUserCouponIds(userCouponIds, UserCouponStatus.UNUSED);
+        if (CollUtils.isEmpty(coupons)) return null;
+
+        // 2.查询优惠券对应课程
+        Map<Coupon, List<OrderCourseDTO>> availableCouponMap = findAvailableCourse(coupons, dto.getCourseList());
+        if (CollUtils.isEmpty(availableCouponMap)) return null;
+
+        // 3.查询优惠券规则
+        return calculateSolutionDiscount(availableCouponMap, dto.getCourseList(), coupons);
+    }
+
+
+
 }

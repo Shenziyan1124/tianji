@@ -4,7 +4,7 @@ package com.tianji.promotion.controller;
 import com.tianji.api.dto.promotion.CouponDiscountDTO;
 import com.tianji.api.dto.promotion.OrderCourseDTO;
 import com.tianji.common.domain.dto.PageDTO;
-import com.tianji.common.domain.query.PageQuery;
+import com.tianji.api.dto.promotion.OrderCouponDTO;
 import com.tianji.promotion.domain.query.UserCouponQuery;
 import com.tianji.promotion.domain.vo.CouponPageVO;
 import com.tianji.promotion.service.IDiscountService;
@@ -55,5 +55,12 @@ public class UserCouponController {
     @ApiOperation("查询我的优惠券可用方案")
     public List<CouponDiscountDTO> findDiscountSolution(@RequestBody List<OrderCourseDTO> orderCourses){
         return discountService.findDiscountSolution(orderCourses);
+    }
+
+    // feign tj-trade调用, 查询优惠券方案计算订单优惠明细,存入订单表
+    @ApiOperation("查询优惠券方案计算订单优惠明细")
+    @PostMapping("/discount")
+    public CouponDiscountDTO queryDiscountDetailByOrder(@RequestBody OrderCouponDTO dto){
+        return discountService.queryDiscountDetailByOrder(dto);
     }
 }
