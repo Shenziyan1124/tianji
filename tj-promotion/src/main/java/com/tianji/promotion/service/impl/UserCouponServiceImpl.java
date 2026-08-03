@@ -347,11 +347,19 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
         if (CollUtils.isEmpty(collect)) return;
 
         // 批量更新
-        boolean success = updateBatchById(collect);
-        if (!success) return;
+//        boolean success = updateBatchById(collect);
+//        if (!success) return;
 
         // 只对真正核销成功的券增加使用数量(collect里的对象只有id和status,需要回到userCoupons里取couponId)
         Set<Long> updatedIds = collect.stream().map(UserCoupon::getId).collect(Collectors.toSet());
+
+        boolean success = lambdaUpdate()
+                .in(UserCoupon::getId, updatedIds)
+                .eq(UserCoupon::getStatus, UserCouponStatus.UNUSED)
+                .set(UserCoupon::getStatus, UserCouponStatus.USED)
+                .update();
+        if (!success) return;
+
         List<Long> couponIds = userCoupons.stream()
                 .filter(uc -> updatedIds.contains(uc.getId()))
                 .map(UserCoupon::getCouponId)

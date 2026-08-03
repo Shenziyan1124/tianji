@@ -5,9 +5,9 @@
     <update id="incrUsedNum">
         update coupon set used_num = used_num + #{i}
         where id in
-        <foreach collection="couponIds" item="id" open="(" separator=",
-     " close=")">
+        <foreach collection="couponIds" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+        and used_num &lt; total_num
     </update>
 </mapper>

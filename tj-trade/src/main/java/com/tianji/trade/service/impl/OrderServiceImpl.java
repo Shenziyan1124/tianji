@@ -128,10 +128,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         // 5.删除购物车数据
         cartService.deleteCartByUserAndCourseIds(userId, placeOrderDTO.getCourseIds());
 
-        // 6.核销优惠券
-        promotionClient.useCoupon(couponIds);
-
-        // 7.构建下单结果
+        // 6.构建下单结果
         return PlaceOrderResultVO.builder()
                 .orderId(orderId)
                 .payAmount(realAmount)
@@ -431,7 +428,14 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         detailService.markDetailSuccessByOrderId(o.getId(), payResult.getPayChannel(), payResult.getSuccessTime());
         // 4.查询订单包含的课程信息
         List<Long> cIds = detailService.queryCourseIdsByOrderId(o.getId());
-        // 5.发送MQ消息，通知报名成功
+
+        // 5. 核销优惠券
+        List<Long> couponIds = order.getCouponIds();
+        if (CollUtils.isNotEmpty(couponIds)) {
+            promotionClient.useCoupon(couponIds);
+        }
+
+        // 6.发送MQ消息，通知报名成功
         rabbitMqHelper.send(
                 MqConstants.Exchange.ORDER_EXCHANGE,
                 MqConstants.Key.ORDER_PAY_KEY,

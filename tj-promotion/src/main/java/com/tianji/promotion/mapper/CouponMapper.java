@@ -21,5 +21,5 @@ public interface CouponMapper extends BaseMapper<Coupon> {
     int incrIssueNum(@Param("couponId") Long couponId);
 
 
-    int incrUsedNum(List<Long> couponIds, int i);
+    int incrUsedNum(@Param("couponIds") List<Long> couponIds, @Param("i") int i);
 }
