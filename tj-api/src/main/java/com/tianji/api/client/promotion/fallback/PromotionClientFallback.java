@@ -35,6 +35,12 @@ public class PromotionClientFallback implements FallbackFactory<PromotionClient>
                 log.warn("调用tj-promotion服务异常，使用优惠券失败");
                 throw new BizIllegalException(500, "核销优惠券异常", cause);
             }
+
+            @Override
+            public void refundCoupon(List<Long> userCouponIds) {
+                log.warn("调用tj-promotion服务异常，退还优惠券失败");
+                throw new BizIllegalException(500, "退还优惠券异常", cause);
+            }
         };
     }
 

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@FeignClient(name = "promotion-service",fallbackFactory = PromotionClientFallback.class)
+@FeignClient(name = "promotion-service", fallbackFactory = PromotionClientFallback.class)
 public interface PromotionClient {
     @PostMapping("/user-coupons/available")
     List<CouponDiscountDTO> findDiscountSolution(@RequestBody List<OrderCourseDTO> orderCourses);
@@ -28,6 +28,14 @@ public interface PromotionClient {
     @PutMapping("/user-coupons/use")
     @ApiOperation("核销优惠券")
     void useCoupon(
+            @ApiParam("用户优惠券id集合")
+            @RequestParam("couponIds")
+            List<Long> userCouponIds
+    );
+
+    @PutMapping("/user-coupons/refund")
+    @ApiOperation("退还优惠券")
+    void refundCoupon(
             @ApiParam("用户优惠券id集合")
             @RequestParam("couponIds")
             List<Long> userCouponIds
