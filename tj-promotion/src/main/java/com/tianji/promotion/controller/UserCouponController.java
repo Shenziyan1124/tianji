@@ -47,21 +47,21 @@ public class UserCouponController {
 
     @GetMapping("/page")
     @ApiOperation("分页查询用户优惠券")
-    public PageDTO<CouponPageVO> pageUserCoupons(UserCouponQuery  query ) {
-       return userCouponService.pageUserCoupons(query);
+    public PageDTO<CouponPageVO> pageUserCoupons(UserCouponQuery query) {
+        return userCouponService.pageUserCoupons(query);
     }
 
 
     @PostMapping("/available")
     @ApiOperation("查询我的优惠券可用方案")
-    public List<CouponDiscountDTO> findDiscountSolution(@RequestBody List<OrderCourseDTO> orderCourses){
+    public List<CouponDiscountDTO> findDiscountSolution(@RequestBody List<OrderCourseDTO> orderCourses) {
         return discountService.findDiscountSolution(orderCourses);
     }
 
     // feign tj-trade调用, 查询优惠券方案计算订单优惠明细,存入订单表
     @ApiOperation("查询优惠券方案计算订单优惠明细")
     @PostMapping("/discount")
-    public CouponDiscountDTO queryDiscountDetailByOrder(@RequestBody OrderCouponDTO dto){
+    public CouponDiscountDTO queryDiscountDetailByOrder(@RequestBody OrderCouponDTO dto) {
         return discountService.queryDiscountDetailByOrder(dto);
     }
 
@@ -71,8 +71,17 @@ public class UserCouponController {
             @ApiParam("用户优惠券id集合")
             @RequestParam("couponIds")
             List<Long> userCouponIds
-    ){
+    ) {
         userCouponService.useCoupon(userCouponIds);
+    }
+
+    @PutMapping("/refund")
+    @ApiOperation("退还优惠券")
+    public void refundCoupon(@ApiParam("用户优惠券id集合")
+                             @RequestParam("couponIds")
+                             List<Long> userCouponIds)
+    {
+        userCouponService.refundCoupon(userCouponIds);
     }
 
 

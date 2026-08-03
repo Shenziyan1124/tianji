@@ -38,4 +38,6 @@ public interface IUserCouponService extends IService<UserCoupon> {
     PageDTO<CouponPageVO> pageUserCoupons(UserCouponQuery query);
 
     void useCoupon(List<Long> userCouponIds);
+
+    void refundCoupon(List<Long> userCouponIds);
 }

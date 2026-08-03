@@ -8,6 +8,7 @@
         <foreach collection="couponIds" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-        and used_num &lt; total_num
+        # 让"减"只允许在 used_num > 0 时执行
+        and ((#{i} > 0 and used_num &lt; total_num) or (#{i} &lt; 0 and used_num > 0))
     </update>
 </mapper>

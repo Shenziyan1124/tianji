@@ -32,6 +32,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 import com.tianji.promotion.utils.CodeUtil;
 import com.tianji.promotion.utils.MyLock;
 import com.tianji.promotion.utils.MyLockType;
@@ -347,8 +348,8 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
         if (CollUtils.isEmpty(collect)) return;
 
         // 批量更新
-//        boolean success = updateBatchById(collect);
-//        if (!success) return;
+        //        boolean success = updateBatchById(collect);
+        //        if (!success) return;
 
         // 只对真正核销成功的券增加使用数量(collect里的对象只有id和status,需要回到userCoupons里取couponId)
         Set<Long> updatedIds = collect.stream().map(UserCoupon::getId).collect(Collectors.toSet());
@@ -364,8 +365,45 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
                 .filter(uc -> updatedIds.contains(uc.getId()))
                 .map(UserCoupon::getCouponId)
                 .collect(Collectors.toList());
-        int c = couponMapper.incrUsedNum(couponIds,1);
-        if (c < 1){
+        int c = couponMapper.incrUsedNum(couponIds, 1);
+        if (c < 1) {
+            throw new DbException("更新优惠券使用数量失败！");
+        }
+    }
+
+    // 退还优惠券
+    @Override
+    @Transactional
+    public void refundCoupon(List<Long> userCouponIds) {
+        // 1. 查询优惠券
+        List<UserCoupon> userCoupons = listByIds(userCouponIds);
+        if (CollUtils.isEmpty(userCoupons)) throw new BizIllegalException("优惠券不存在");
+
+        // 2. 处理优惠券数据
+        List<UserCoupon> list = userCoupons.stream()
+                .filter(
+                        coupon -> coupon != null && UserCouponStatus.USED == coupon.getStatus())
+                .map(coupon -> {
+                    UserCoupon c = new UserCoupon();
+                    c.setId(coupon.getId());
+                    LocalDateTime now = LocalDateTime.now();
+                    // 3. 判断有效期，是否已经过期，如果过期，则状态为 已过期，否则状态为 未使用
+                    UserCouponStatus status = now.isAfter(coupon.getTermEndTime()) ? UserCouponStatus.EXPIRED : UserCouponStatus.UNUSED;
+                    c.setStatus(status);
+                    c.setCouponId(coupon.getCouponId());
+                    return c;
+                })
+                .collect(Collectors.toList());
+        if (CollUtils.isEmpty(list)) return;
+
+        // 4. 修改优惠券状态
+        boolean success = updateBatchById(list);
+        if (!success) return;
+
+        // 5. 更新已使用数量
+        List<Long> couponIds = list.stream().map(UserCoupon::getCouponId).collect(Collectors.toList());
+        int c = couponMapper.incrUsedNum(couponIds, -1);
+        if (c < 1) {
             throw new DbException("更新优惠券使用数量失败！");
         }
     }
