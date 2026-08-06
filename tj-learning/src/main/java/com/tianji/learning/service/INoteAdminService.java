@@ -7,6 +7,7 @@ import com.tianji.learning.domain.po.Note;
 import com.tianji.learning.domain.query.NoteAdminQuery;
 import com.tianji.learning.domain.query.NotePageQuery;
 import com.tianji.learning.domain.vo.NoteAdminVO;
+import com.tianji.learning.domain.vo.NoteDetailVO;
 import com.tianji.learning.domain.vo.NoteVO;
 
 /**
@@ -20,4 +21,6 @@ import com.tianji.learning.domain.vo.NoteVO;
 public interface INoteAdminService extends IService<Note> {
 
     PageDTO<NoteAdminVO> queryAdminNoteList(NoteAdminQuery query);
+
+    NoteDetailVO queryAdminNoteDetailByID(Long id);
 }

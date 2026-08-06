@@ -4,10 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tianji.api.client.course.CatalogueClient;
+import com.tianji.api.client.course.CategoryClient;
 import com.tianji.api.client.course.CourseClient;
 import com.tianji.api.client.remark.RemarkClient;
 import com.tianji.api.client.user.UserClient;
+import com.tianji.api.dto.course.CataSimpleInfoDTO;
 import com.tianji.api.dto.course.CatalogueDTO;
+import com.tianji.api.dto.course.CategoryBasicDTO;
 import com.tianji.api.dto.course.CourseFullInfoDTO;
 import com.tianji.api.dto.user.UserDTO;
 import com.tianji.common.domain.dto.PageDTO;
@@ -24,6 +28,7 @@ import com.tianji.learning.domain.po.NoteCollect;
 import com.tianji.learning.domain.query.NoteAdminQuery;
 import com.tianji.learning.domain.query.NotePageQuery;
 import com.tianji.learning.domain.vo.NoteAdminVO;
+import com.tianji.learning.domain.vo.NoteDetailVO;
 import com.tianji.learning.domain.vo.NoteVO;
 import com.tianji.learning.mapper.NoteCollectMapper;
 import com.tianji.learning.mapper.NoteMapper;
@@ -52,8 +57,9 @@ public class NoteAdminServiceImpl extends ServiceImpl<NoteMapper, Note> implemen
 
     private final NoteCollectMapper collectMapper;
     private final UserClient userClient;
-    private final RemarkClient remarkClient;
     private final CourseClient courseClient;
+    private final CategoryClient categoryClient; // 课程多级分类
+    private final CatalogueClient catalogueClient; // 课程章节信息
 
 
     // 管理端笔记列表
@@ -117,7 +123,7 @@ public class NoteAdminServiceImpl extends ServiceImpl<NoteMapper, Note> implemen
         // 2.4. 获取用户信息
         List<Long> userIdlist = records.stream().map(Note::getUserId).distinct().collect(Collectors.toList());
         List<UserDTO> users = userClient.queryUserByIds(userIdlist);
-        Map<Long, UserDTO> userMap = CollUtils.isEmpty(users) ? CollUtils.emptyMap()
+        Map<Long, UserDTO> userMap = CollUtils.isEmpty(users) ? Collections.emptyMap()
                 : users.stream().collect(Collectors.toMap(UserDTO::getId, u -> u));
 
         // 2.5. 引用次数,查采集表group by
@@ -148,5 +154,83 @@ public class NoteAdminServiceImpl extends ServiceImpl<NoteMapper, Note> implemen
         }
 
         return PageDTO.of(page, vos);
+    }
+
+    // 管理端笔记详情
+    @Override
+    public NoteDetailVO queryAdminNoteDetailByID(Long id) {
+
+        // 1. 查询笔记
+        Note note = getById(id);
+        if (note == null) throw new BizIllegalException("笔记不存在");
+
+        // 2. 构造vo
+        // 2.1 基础信息
+        // id/content/noteMoment/hidden/createTime
+        NoteDetailVO noteDetailVO = BeanUtils.copyBean(note, NoteDetailVO.class);
+
+        // 2.2 课程/章/节.多级分类
+        CourseFullInfoDTO courseInfoById = courseClient.getCourseInfoById(note.getCourseId(), false, false);
+        List<Long> allLevelIds = new ArrayList<>(3);
+        if (courseInfoById != null) {
+            noteDetailVO.setCourseName(courseInfoById.getName()); // 课程name
+            allLevelIds.add(courseInfoById.getFirstCateId());
+            allLevelIds.add(courseInfoById.getSecondCateId());
+            allLevelIds.add(courseInfoById.getThirdCateId());
+        }
+
+
+
+
+        // 获取多级分类名称
+        List<CategoryBasicDTO> allOfOneLevel = categoryClient.getAllOfOneLevel();
+
+        Map<Long, String> cateMap =  CollUtils.isEmpty(allOfOneLevel) ? Collections.emptyMap() :
+                allOfOneLevel.stream().collect(
+                        Collectors.toMap(CategoryBasicDTO::getId, CategoryBasicDTO::getName, (o1, o2) -> o1));
+        String categoryNames = allLevelIds.stream().map(cateMap::get).filter(Objects::nonNull).collect(Collectors.joining("/"));
+        noteDetailVO.setCategoryNames(categoryNames);
+
+        // 获取章节信息
+        List<CataSimpleInfoDTO> cataInfos = catalogueClient.batchQueryCatalogue(List.of(note.getChapterId(), note.getSectionId()));
+
+        Map<Long, String> cataNameMap = CollUtils.isEmpty(cataInfos) ? Collections.emptyMap() :
+                cataInfos.stream().collect(
+                Collectors.toMap(CataSimpleInfoDTO::getId, CataSimpleInfoDTO::getName, (o1, o2) -> o1));
+
+        noteDetailVO.setChapterName(cataNameMap.get(note.getChapterId())); // 章name
+        noteDetailVO.setSectionName(cataNameMap.get(note.getSectionId())); // 节name
+
+
+        // 2.3 被采集次数/采集人名称 用户名称/电话
+        List<Long> allUserIds = new ArrayList<>();
+        List<NoteCollect> collects = collectMapper.selectList(new LambdaQueryWrapper<NoteCollect>().eq(NoteCollect::getNoteId, note.getId()));
+        List<Long> gathererIds = collects.stream().map(NoteCollect::getUserId).collect(Collectors.toList());
+        allUserIds.add(note.getUserId()); // 笔记作者
+        allUserIds.addAll(gathererIds);   // 笔记的采集人
+
+        // 一块查询user信息 作者+采集人
+        List<UserDTO> users = userClient.queryUserByIds(allUserIds);
+        // user信息映射
+        Map<Long, UserDTO> userMap = CollUtils.isEmpty(users) ? Collections.emptyMap() :
+                users.stream().collect(Collectors.toMap(UserDTO::getId, u -> u));
+
+        noteDetailVO.setGathers(
+                gathererIds.stream()
+                        .map(userMap::get)
+                        .filter(Objects::nonNull)
+                        .map(UserDTO::getName)
+                        .collect(Collectors.toList())); // 采集人名称
+
+        noteDetailVO.setUsedTimes(collects.size()); // 被采集次数
+
+        UserDTO author = userMap.get(note.getUserId());
+        if (author != null){
+            noteDetailVO.setAuthorName(author.getName()); // 作者名称
+            noteDetailVO.setAuthorPhone(author.getCellPhone()); // 作者电话
+        }
+
+
+        return noteDetailVO;
     }
 }

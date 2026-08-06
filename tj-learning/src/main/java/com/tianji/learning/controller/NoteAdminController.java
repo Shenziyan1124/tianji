@@ -6,6 +6,7 @@ import com.tianji.learning.domain.dto.NoteFormDTO;
 import com.tianji.learning.domain.query.NoteAdminQuery;
 import com.tianji.learning.domain.query.NotePageQuery;
 import com.tianji.learning.domain.vo.NoteAdminVO;
+import com.tianji.learning.domain.vo.NoteDetailVO;
 import com.tianji.learning.domain.vo.NoteVO;
 import com.tianji.learning.service.INoteAdminService;
 import com.tianji.learning.service.INoteService;
@@ -31,8 +32,17 @@ public class NoteAdminController {
 
     private final INoteAdminService noteService;
 
+    @GetMapping("/page")
     @ApiOperation(value = "管理端-分页查询笔记")
     public PageDTO<NoteAdminVO> queryAdminNoteList(NoteAdminQuery query){
         return noteService.queryAdminNoteList(query);
     }
+
+    @GetMapping("/{id}")
+    @ApiOperation(value = "管理端-查询笔记详情")
+    public NoteDetailVO queryAdminNoteDetailByID(@PathVariable Long id){
+        return noteService.queryAdminNoteDetailByID(id);
+    }
+
+
 }
