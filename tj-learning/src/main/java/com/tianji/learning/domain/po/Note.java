@@ -81,6 +81,11 @@ public class Note implements Serializable {
      */
     private LocalDateTime updateTime;
 
+    /**
+     * 是否隐藏，true表示在用户端隐藏
+     */
+    private Boolean hidden;
+
 
 
 

@@ -55,9 +55,9 @@ public interface CourseClient {
     List<CourseSimpleInfoDTO> getSimpleInfoList(@RequestParam("ids") Iterable<Long> ids);
 
     /**
-     * 根据课程id，获取课程、目录、教师信息
+     * 根据课程id，获取课程、目录、教师信�?
      * @param id 课程id
-     * @return 课程信息、目录信息、教师信息
+     * @return 课程信息、目录信息、教师信�?
      */
     @GetMapping("/course/{id}")
     CourseFullInfoDTO getCourseInfoById(
@@ -65,4 +65,12 @@ public interface CourseClient {
             @RequestParam(value = "withCatalogue", required = false) boolean withCatalogue,
             @RequestParam(value = "withTeachers", required = false) boolean withTeachers
     );
+
+    /**
+     * 根据课程名称模糊查询课程id列表
+     * @param name 课程名称
+     * @return 课程id列表
+     */
+    @GetMapping("/course/name")
+    List<Long> queryCourseIdByName(@RequestParam("name") String name);
 }
