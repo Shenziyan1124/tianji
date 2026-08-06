@@ -23,4 +23,6 @@ public interface INoteAdminService extends IService<Note> {
     PageDTO<NoteAdminVO> queryAdminNoteList(NoteAdminQuery query);
 
     NoteDetailVO queryAdminNoteDetailByID(Long id);
+
+    void hiddenNote(Long id, Boolean hidden);
 }

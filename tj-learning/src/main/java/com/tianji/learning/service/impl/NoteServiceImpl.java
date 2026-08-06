@@ -152,6 +152,7 @@ public class NoteServiceImpl extends ServiceImpl<NoteMapper, Note> implements IN
         Long userId = UserContext.getUser();
         // 1.分页查询
         Page<Note> page = lambdaQuery()
+                .eq(Note::getHidden, false) // 管理端隐藏的笔记用户端一律不可见
                 .eq(Boolean.TRUE.equals(query.getOnlyMine()), Note::getUserId, userId)
                 .eq(Boolean.FALSE.equals(query.getOnlyMine()), Note::getIsPrivate, false)
                 .eq(query.getCourseId() != null, Note::getCourseId, query.getCourseId())

@@ -44,5 +44,11 @@ public class NoteAdminController {
         return noteService.queryAdminNoteDetailByID(id);
     }
 
+    @PutMapping("{id}/hidden/{hidden}")
+    @ApiOperation(value = "管理端-隐藏/显示笔记")
+    public void hiddenNote(@PathVariable Long id, @PathVariable Boolean hidden){
+        noteService.hiddenNote(id, hidden);
+    }
+
 
 }

@@ -233,4 +233,21 @@ public class NoteAdminServiceImpl extends ServiceImpl<NoteMapper, Note> implemen
 
         return noteDetailVO;
     }
+
+    // 管理端笔记隐藏
+    @Override
+    public void hiddenNote(Long id, Boolean hidden) {
+        // 1.判断笔记是否存在
+        Note note = getById(id);
+        if (note == null) {
+            throw new BizIllegalException("笔记不存在");
+        }
+        boolean success = lambdaUpdate()
+                .eq(Note::getId, id)
+                .set(Note::getHidden, Boolean.TRUE.equals(hidden))
+                .update();
+        if (!success) throw new BizIllegalException("笔记更新失败");
+    }
+
+
 }
