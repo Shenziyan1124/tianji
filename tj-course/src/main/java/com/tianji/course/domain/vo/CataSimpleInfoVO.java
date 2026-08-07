@@ -26,4 +26,6 @@ public class CataSimpleInfoVO {
     private Integer cIndex;
     @ApiModelProperty("数字序号章序号")
     private Integer chapterIndex;
+    @ApiModelProperty("所属课程id")
+    private Long courseId;
 }

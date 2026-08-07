@@ -16,4 +16,6 @@ public class CataSimpleInfoDTO {
     private String name;
     @ApiModelProperty("数字序号，不包含章序号")
     private Integer cIndex;
+    @ApiModelProperty("所属课程id")
+    private Long courseId;
 }

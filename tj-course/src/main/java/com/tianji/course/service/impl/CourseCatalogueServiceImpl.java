@@ -165,7 +165,8 @@ public class CourseCatalogueServiceImpl extends ServiceImpl<CourseCatalogueMappe
                             courseCatalogue.getCIndex());
                     //3.2组装目录信息，目录id，目录名称，目录序号
                     return new CataSimpleInfoVO(courseCatalogue.getId(),
-                            courseCatalogue.getName(), index, courseCatalogue.getCIndex(), null);
+                            courseCatalogue.getName(), index, courseCatalogue.getCIndex(), null,
+                            courseCatalogue.getCourseId());
                 })
                 .collect(Collectors.toList());
     }

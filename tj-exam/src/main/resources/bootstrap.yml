@@ -5,6 +5,9 @@ server:
   error:
     include-message: always #返回的响应体带上message
 spring:
+  data:
+    mongodb:
+      uri: mongodb://root:123456@192.168.150.101:27017/tj-exam?authSource=admin
   profiles:
     active: dev
   application:
