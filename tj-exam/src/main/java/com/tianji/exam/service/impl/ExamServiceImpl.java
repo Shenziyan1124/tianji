@@ -9,6 +9,8 @@ import com.tianji.api.dto.leanring.LearningRecordFormDTO;
 import com.tianji.api.dto.leanring.SectionType;
 import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
 import com.tianji.common.constants.MqConstants;
+import com.tianji.common.domain.dto.PageDTO;
+import com.tianji.common.domain.query.PageQuery;
 import com.tianji.common.exceptions.BadRequestException;
 import com.tianji.common.exceptions.BizIllegalException;
 import com.tianji.common.utils.BeanUtils;
@@ -20,18 +22,22 @@ import com.tianji.exam.domain.dto.ExamStartDTO;
 import com.tianji.exam.domain.dto.ExamSubmitDTO;
 import com.tianji.exam.domain.po.ExamRecord;
 import com.tianji.exam.domain.po.ExamRecordQuestion;
+import com.tianji.exam.domain.vo.ExamRecordQuestionVO;
 import com.tianji.exam.domain.vo.ExamVO;
 import com.tianji.exam.Repository.ExamRecordRepository;
+import com.tianji.exam.domain.vo.QuestionAnswerVO;
 import com.tianji.exam.domain.vo.QuestionVO;
 import com.tianji.exam.service.IExamService;
 import com.tianji.exam.service.IQuestionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -184,5 +190,53 @@ public class ExamServiceImpl implements IExamService {
                 MqConstants.Key.EXAM_SUBMIT,
                 msgDTO
         );
+    }
+
+    // 我的考试列表
+    @Override
+    public PageDTO<ExamRecord> getMyExamPage(PageQuery query) {
+        // 构建查询条件,按当前用户过滤
+        Query mongoQuery = new Query(Criteria.where("userId").is(UserContext.getUser()));
+
+        // 先统计总数,count只带条件,忽略分页
+        long total = mongoTemplate.count(mongoQuery, ExamRecord.class);
+
+        // 分页 + 开始时间倒叙
+        mongoQuery.skip(query.from())
+                .limit(query.getPageSize())
+                .with(Sort.by(Sort.Direction.DESC, "startTime"));
+
+        List<ExamRecord> records = mongoTemplate.find(mongoQuery, ExamRecord.class);
+        long pages = (total + query.getPageSize() - 1) / query.getPageSize();
+        if (CollUtils.isEmpty(records))
+            return PageDTO.empty(total, pages);
+
+        return new PageDTO<>(total, pages, records);
+    }
+
+    // 考试详情
+    @Override
+    public List<ExamRecordQuestionVO> getExamDetailById(String id) {
+        // 1. 根据考试记录id查询所有答题明细
+        Query query = new Query(Criteria.where("examRecordId").is(id));
+        List<ExamRecordQuestion> records = mongoTemplate.find(query, ExamRecordQuestion.class);
+
+        // 2. 得到所有的题目id,去mysql查询题目 answer analysis options score
+        List<Long> qIds = records.stream().map(ExamRecordQuestion::getQuestionId)
+                .collect(Collectors.toList());
+        List<QuestionDTO> question = questionService.queryQuestionByIds(qIds);
+        Map<Long, QuestionDTO> qMap = question.stream()
+                .collect(Collectors.toMap(QuestionDTO::getId, q -> q));
+
+        // 3. 组装ExamRecordQuestionVO,
+        return records.stream().map(r -> {
+            ExamRecordQuestionVO vo = new ExamRecordQuestionVO();
+            vo.setAnswer(r.getAnswer());
+            vo.setCorrect(r.getCorrect());
+            vo.setComment(r.getComment());
+            vo.setScore(r.getScore());
+            vo.setQuestion(BeanUtils.copyProperties(qMap.get(r.getQuestionId()), QuestionAnswerVO.class));
+            return vo;
+        }).collect(Collectors.toList());
     }
 }

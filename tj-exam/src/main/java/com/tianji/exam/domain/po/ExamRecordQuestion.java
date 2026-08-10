@@ -59,4 +59,7 @@ public class ExamRecordQuestion implements Serializable {
      * 本题得分，批改后回填
      */
     private Integer score;
+
+    /** 老师评语 */
+    private String comment;
 }
