@@ -1,6 +1,7 @@
 package com.tianji.exam.service;
 
 import com.tianji.exam.domain.dto.ExamStartDTO;
+import com.tianji.exam.domain.dto.ExamSubmitDTO;
 import com.tianji.exam.domain.vo.ExamVO;
 
 /**
@@ -17,4 +18,7 @@ public interface IExamService {
      * 获取试题并开始考试
      */
     ExamVO startExam(ExamStartDTO dto);
+
+    /** 提交试卷 **/
+    void submitExam(ExamSubmitDTO dto);
 }

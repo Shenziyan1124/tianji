@@ -1,6 +1,7 @@
 package com.tianji.exam.controller;
 
 import com.tianji.exam.domain.dto.ExamStartDTO;
+import com.tianji.exam.domain.dto.ExamSubmitDTO;
 import com.tianji.exam.domain.vo.ExamVO;
 import com.tianji.exam.service.IExamService;
 import io.swagger.annotations.Api;
@@ -33,5 +34,11 @@ public class ExamController {
     @PostMapping
     public ExamVO startExam(@Valid @RequestBody ExamStartDTO dto) {
         return examService.startExam(dto);
+    }
+
+    @ApiOperation("提交考试结果")
+    @PostMapping("/details")
+    public void submitExam(ExamSubmitDTO dto){
+        examService.submitExam(dto);
     }
 }

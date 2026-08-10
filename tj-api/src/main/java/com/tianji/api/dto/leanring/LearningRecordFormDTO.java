@@ -13,6 +13,9 @@ public class LearningRecordFormDTO {
     @ApiModelProperty("小节类型：1-视频，2-考试")
     private Integer sectionType;
 
+    @ApiModelProperty("用户id")
+    private Long userId;
+
     @ApiModelProperty("课表id")
     private Long lessonId;
 

@@ -47,6 +47,11 @@ public class ExamRecord implements Serializable {
     private Long sectionId;
 
     /**
+     * 课表id，报名后学习服务生成的课表
+     */
+    private Long lessonId;
+
+    /**
      * 考试类型，1-练习，2-考试
      */
     private Integer type;

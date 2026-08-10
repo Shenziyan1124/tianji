@@ -50,6 +50,8 @@ public interface MqConstants {
         String SIGN_IN = "sign.in";
         /* 学习视频 */
         String LEARN_SECTION = "section.learned";
+        /* 考试提交 */
+        String EXAM_SUBMIT = "exam.submit";
         /* 写笔记 */
         String WRITE_NOTE = "note.new";
         /* 笔记被采集 */
